@@ -134,7 +134,7 @@ def handle_movie (movie, browser):
 
 if __name__ == '__main__':
 
-    CHROME_DRIVER_PATH = "./chromedriver-1"
+    CHROME_DRIVER_PATH = "./chromedriver"
 
     # Create data/scraping/texts files
     if not os.path.exists('./data'):

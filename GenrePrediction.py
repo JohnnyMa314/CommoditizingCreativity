@@ -19,6 +19,7 @@ def trim(s):
     """Trim string to fit on terminal (assuming 80-column display)"""
     return s if len(s) <= 80 else s[:77] + "..."
 
+# to quickly produce nice benchmark metrics
 def benchmark(clf):
     print('_' * 80)
     print("Training: ")
@@ -56,16 +57,17 @@ def main():
                               names = ['script', 'genre', 'stars', 'title', 'dir'],
                               sep = ';')
 
-    scripts_bow, titles, vocab = scripts_to_bow(os.path.join(os.getcwd(), 'data/scraping/texts/')) # get sparse matrix of features
+    # get sparse matrix of features
+    scripts_bow, titles, vocab = scripts_to_bow(os.path.join(os.getcwd(), 'data/scraping/texts/'))
     script_info = script_info.drop_duplicates(['title']).sort_values(by=['title'])
 
-    # check if lists are equal
+    # check if lists of titles are identical
     if Counter(list(script_info.title)) == Counter(titles):
         print("The lists are identical")
 
-    # get 1st genre from list of list of genres
+    # get all genres for multiclass prediction
     multi_genre = [ast.literal_eval(genre) for genre in script_info.genre]
-    genre = [genre[0] for genre in multi_genre]
+    genre = [genre[0] for genre in multi_genre] # 1st genre
     classes = set(genre)
     print(Counter(genre))
 
@@ -73,26 +75,19 @@ def main():
     X = scripts_bow
     y = genres
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=420)
 
     # Logistic Regression
-    clf = LogisticRegression(random_state=0, )
-    clf.fit(X_train, y_train)
-    clf.predict(X[:2, :])
-
+    clf = LogisticRegression(random_state=420)
     benchmark(clf)
 
     # Naive Bayes
     nb = MultinomialNB()
-    nb.fit(X_train, y_train)
-    y_pred = nb.predict(X_test)
-    metrics.confusion_matrix(y_pred, y_test)
-
     benchmark(nb)
 
     ## Multi Class
 
-    # binarize class identity
+    # make genre class binary indicators over all classes
     y_multi = []
     for genre_set in multi_genre:
         bins = []
@@ -102,9 +97,10 @@ def main():
 
         y_multi.append(bins)
 
-    mlb = MultiLabelBinarizer()
-    X_train, X_test, y_train, y_test = train_test_split(X, y_multi, test_size=0.33, random_state=42)
+    mlb = MultiLabelBinarizer() # this also works, will implement later
+    X_train, X_test, y_train, y_test = train_test_split(X, y_multi, test_size=0.2, random_state=420) # use new y multi
 
+    # multi genre classifier. not great.
     clf = MultiOutputClassifier(KNeighborsClassifier()).fit(X_train, y_train)
     pred = clf.predict(X_test)
     clf.score(X_test, pred)
