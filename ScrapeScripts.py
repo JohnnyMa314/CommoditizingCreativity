@@ -5,6 +5,135 @@ import sys
 import codecs
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from imdb import IMDb
+import datetime
+import pandas as pd
+import csv
+import numpy as np
+
+# get imdb id from title search, given higher than 2000 votes on movie
+def get_imdb_from_title(movie_title):
+    ia = IMDb()
+    s_result = ia.search_movie(movie_title)
+
+    if s_result is None:
+        return '0'
+
+    item = []
+    # Print the long imdb canonical title and movieID of the results.
+    for item in s_result[0:10]:
+        print(item['long imdb canonical title'], item.movieID)
+        movie = ia.get_movie(item.movieID)
+
+        # if more than 10k people have seen the movie
+        votes = movie.get('votes')
+        if votes is not None:
+            if votes > 2000:
+                break
+    if not item:
+        return '0'
+
+    return item.movieID
+
+# get box office data manually from imdb id.
+def get_boxoffice_data(imdb_id):
+    # get url from
+    url = 'http://www.boxofficemojo.com/title/tt' + str(imdb_id)
+    resp = requests.get(url)
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    print(url)
+
+    features = ['BOM-url', 'Distributor', 'OW-Revenue', 'OW-Opens', 'Budget', 'Release-Date', 'Days-in-Release', 'MPAA', 'Runtime', 'Genres', 'Widest-Release']
+
+    try:
+        # get BOM_ID from BOM IMDB id page
+        bom_id = 'N/A'
+        out = soup.findAll('a', {'class': 'a-link-normal'})
+        for tag in out:
+            if '/release/' in tag.get('href'):
+                bom_url = tag.get('href').replace('/release', '')
+                bom_id = re.search('(?<=\/)(.*?)(?=\/)', bom_url).group() # get bom "RL" id
+                if 'rl' in bom_id:
+                    break
+
+        if bom_id == 'N/A':
+            return pd.DataFrame('N/A', index=np.arange(1), columns=features)
+
+        # fill out DataFrame
+        bom_data = pd.DataFrame(columns = features)
+
+
+        # get BOM meta data
+        url = 'https://www.boxofficemojo.com/release/' + bom_id
+        print(url)
+        resp = requests.get(url)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        sum_table = soup.findAll('div', {'class': 'mojo-summary-values'})
+        for info in sum_table:
+            tags = info.findAll('div', {'class': 'a-section'})
+
+            dist = tags[0].text.replace("Distributor", '').replace('See full company information\n\n', '')
+            OW_revenue = tags[1].find('span', {'class': 'money'}).text.strip('$')
+            OW_opens = tags[1].text.replace('Opening', '').replace('\n            theaters', '').replace(OW_revenue, '').strip('$')
+
+            budget = tags[2].text.replace('Budget', '').strip('$')
+            if 'Release Date' in budget:
+                budget = 'N/A'
+                tags[2:2] = ['N/A']
+
+            temp = tags[3].text.replace('Release Date', '').replace('\n            -\n           ', '').strip()
+            release_date = temp[:re.search('(19|20)\d{2}', temp).span()[1]]
+
+            mpaa = tags[4].text.replace('MPAA', '')
+            if 'Running Time' in mpaa:
+                mpaa = 'N/A'
+                tags[4:4] = ['N/A']
+
+            # run time possibilities
+            time_tag = tags[5].text.replace('Running Time', '')
+            if 'min' in time_tag and 'hr' in time_tag:
+                time = datetime.datetime.strptime(time_tag, '%H hr %M min').time()
+                runtime = time.hour * 60 + time.minute
+            if 'min' in time_tag and 'hr' not in time_tag:
+                time = datetime.datetime.strptime(time_tag, '%M min').time()
+                runtime = time.minute
+            if 'min' not in time_tag and 'hr' in time_tag:
+                time = datetime.datetime.strptime(time_tag, '%M min').time()
+                runtime = time.hour * 60
+
+            genres = tags[6].text.replace('Genres', '').replace('\n', '').split()
+            days_in_release = tags[7].text.replace('In Release', '').split('/')[0]
+            widest_release = tags[8].text.replace('Widest Release', '').replace('theaters', '').strip()
+
+        # get domestic and total grosses in this time period
+        gross_table = soup.findAll('div', {'class': 'mojo-performance-summary-table'})
+        for gross in gross_table:
+            grosses = gross.findAll('span', {'class': 'a-size-medium'})
+            dom_gross = grosses[0].text.replace('\n', '').strip('$')
+            int_gross = grosses[1].text.replace('\n', '').strip('$')
+            WW_gross = grosses[2].text.replace('\n', '').strip('$')
+
+        # outputting data
+        bom_data = bom_data.append({'BOM-url': url,
+                                    'Distributor': dist,
+                                    'OW-Revenue': OW_revenue,
+                                    'OW-Opens': OW_opens,
+                                    'Domestic-Total': dom_gross,
+                                    'WorldWide-Total': WW_gross,
+                                    'Budget': budget,
+                                    'Release-Date': release_date,
+                                    'Days-in-Release': days_in_release,
+                                    'MPAA': mpaa,
+                                    'Runtime': runtime,
+                                    'Genres': str(genres),
+                                    'Widest-Release': widest_release}, ignore_index = True)
+
+        return bom_data
+
+    except:
+        print('Error in reading Box Office Mojo Data')
+        return pd.DataFrame('N/A', index=[0], columns=features)
+
 
 def get_all_movies():
     '''
@@ -127,14 +256,24 @@ def handle_movie (movie, browser):
             # Add the meta-information to a CSV file
             path_to_directory = './data/IMSDB/'
             success_filename = path_to_directory + 'successful_files.csv'
-            new_row = title + ',' + str(genre) + ',' + str(writer) + ',' \
-                    + movie_title + ',' + filename + '\n'
-            with open(success_filename, 'a') as f:
-                f.write(new_row)
+            print(title)
+            imdb_id = get_imdb_from_title(title) # get imdb by searching text of title
+            bom_data = get_boxoffice_data(imdb_id).iloc[0] # get box office data from imdb
+            imsdb_out = pd.DataFrame({'Title': title,
+                                      'IMSDB-Genres': str(genre),
+                                      'Writers': str(writer),
+                                      'Movie-Title': movie_title,
+                                      'IMDB-ID': imdb_id,
+                                      'Filename': filename}, index = [0])
+
+            df = pd.concat([imsdb_out, bom_data.to_frame().reindex().T], axis = 1) # concat the two dataframes
+            return df
+
 
 if __name__ == '__main__':
 
     CHROME_DRIVER_PATH = "./chromedriver"
+    path_to_directory = './data/IMSDB/'
 
     # Create data/scraping/texts files
     if not os.path.exists('./data'):
@@ -154,8 +293,10 @@ if __name__ == '__main__':
     # Write all the scripts (in texts folder) and the summary of the movies
     # in .csv format (in scraping folder)
     browser = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH)
+    big_df = pd.DataFrame()
     for i,movie in enumerate(movies):
-        handle_movie(movie, browser)
+        big_df = big_df.append(handle_movie(movie, browser), ignore_index=True)
+        big_df.to_csv(path_to_directory + 'movie_info.csv') # update csv iteratively
         print("----------------------")
         print(movie)
         print("----------------------")
