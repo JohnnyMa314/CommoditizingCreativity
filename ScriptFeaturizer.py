@@ -1,11 +1,9 @@
-import os
 import re
 
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS
 
 from FeatureUtils import tokenize_script
-
 
 
 def num_lines(script):
@@ -15,13 +13,13 @@ def num_lines(script):
 
 def scripts_to_tfidf(scripts):
     """Create Tfidf matrix from tokenized scripts."""
-
     # custom stop words for scripts
     film_stop_words = ['V.O.', "Scene", "CUT TO", "FADE IN"]
     stop_words = STOP_WORDS.union(film_stop_words)
 
     # vectorize scripts into Tfidf matrix
-    vectorizer = TfidfVectorizer(input='content', stop_words=stop_words, min_df = 0.2, ngram_range=(1,1)) # less than 0.2 frequency. bad.
+    vectorizer = TfidfVectorizer(input='content', stop_words=stop_words, min_df=0.2,
+                                 ngram_range=(1, 1))  # less than 0.2 frequency. bad.
     bow = vectorizer.fit_transform(scripts)
     vocab = vectorizer.get_feature_names()
 
@@ -37,15 +35,15 @@ def df_to_stats(df, groupby_col, stat='count'):
 
 def scripts_to_embeddings(scripts):
     """Create WordEmbedding from tokenized scripts."""
-    
+
     docs = [tokenize_script(script, stop_words=True) for script in raw_scripts]
-    
-    model = Word2Vec(docs, 
-                     min_count=100, 
-                     size=100, 
-                     window=5, 
+
+    model = Word2Vec(docs,
+                     min_count=100,
+                     size=100,
+                     window=5,
                      max_vocab_size=2000
-                    )
+                     )
     return model
 
 

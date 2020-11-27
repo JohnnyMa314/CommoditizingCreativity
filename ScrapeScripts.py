@@ -1,15 +1,15 @@
-import requests
-import re
-import os
-import sys
 import codecs
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from imdb import IMDb
 import datetime
-import pandas as pd
-import csv
+import os
+import re
+
 import numpy as np
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from imdb import IMDb
+from selenium import webdriver
+
 
 # get imdb id from title search, given higher than 2000 votes on movie
 def get_imdb_from_title(movie_title):
@@ -35,6 +35,7 @@ def get_imdb_from_title(movie_title):
 
     return item.movieID
 
+
 # get box office data manually from imdb id.
 def get_boxoffice_data(imdb_id):
     # get url from
@@ -43,7 +44,8 @@ def get_boxoffice_data(imdb_id):
     soup = BeautifulSoup(resp.text, 'html.parser')
     print(url)
 
-    features = ['BOM-url', 'Distributor', 'OW-Revenue', 'OW-Opens', 'Budget', 'Release-Date', 'Days-in-Release', 'MPAA', 'Runtime', 'Genres', 'Widest-Release']
+    features = ['BOM-url', 'Distributor', 'OW-Revenue', 'OW-Opens', 'Budget', 'Release-Date', 'Days-in-Release', 'MPAA',
+                'Runtime', 'Genres', 'Widest-Release']
 
     try:
         # get BOM_ID from BOM IMDB id page
@@ -52,7 +54,7 @@ def get_boxoffice_data(imdb_id):
         for tag in out:
             if '/release/' in tag.get('href'):
                 bom_url = tag.get('href').replace('/release', '')
-                bom_id = re.search('(?<=\/)(.*?)(?=\/)', bom_url).group() # get bom "RL" id
+                bom_id = re.search('(?<=\/)(.*?)(?=\/)', bom_url).group()  # get bom "RL" id
                 if 'rl' in bom_id:
                     break
 
@@ -60,8 +62,7 @@ def get_boxoffice_data(imdb_id):
             return pd.DataFrame('N/A', index=np.arange(1), columns=features)
 
         # fill out DataFrame
-        bom_data = pd.DataFrame(columns = features)
-
+        bom_data = pd.DataFrame(columns=features)
 
         # get BOM meta data
         url = 'https://www.boxofficemojo.com/release/' + bom_id
@@ -74,7 +75,8 @@ def get_boxoffice_data(imdb_id):
 
             dist = tags[0].text.replace("Distributor", '').replace('See full company information\n\n', '')
             OW_revenue = tags[1].find('span', {'class': 'money'}).text.strip('$')
-            OW_opens = tags[1].text.replace('Opening', '').replace('\n            theaters', '').replace(OW_revenue, '').strip('$')
+            OW_opens = tags[1].text.replace('Opening', '').replace('\n            theaters', '').replace(OW_revenue,
+                                                                                                         '').strip('$')
 
             budget = tags[2].text.replace('Budget', '').strip('$')
             if 'Release Date' in budget:
@@ -126,7 +128,7 @@ def get_boxoffice_data(imdb_id):
                                     'MPAA': mpaa,
                                     'Runtime': runtime,
                                     'Genres': str(genres),
-                                    'Widest-Release': widest_release}, ignore_index = True)
+                                    'Widest-Release': widest_release}, ignore_index=True)
 
         return bom_data
 
@@ -160,10 +162,11 @@ def get_all_movies():
 
     # Build the final list of tuples, which is to be returned
     movies = [(movie_info.string, \
-              movie_info["href"], \
-              re.split("[,.]",movie_info.string)[0].replace(' ', '_'))
+               movie_info["href"], \
+               re.split("[,.]", movie_info.string)[0].replace(' ', '_'))
               for movie_info in all_movies]
     return movies
+
 
 def check_movie_info(movies):
     '''
@@ -178,11 +181,12 @@ def check_movie_info(movies):
     A string that indicates whether there was a problem or not
     '''
     for movie in movies:
-        if movie[1][0:15] !='/Movie Scripts/':
+        if movie[1][0:15] != '/Movie Scripts/':
             return 'One of the movie link does not start with /Movie Scripts/.'
     return 'All movie URLs have a correct format.'
 
-def handle_movie (movie, browser):
+
+def handle_movie(movie, browser):
     '''
     Download the script corresponding to `movie`, using selenium
     Parameters
@@ -209,11 +213,11 @@ def handle_movie (movie, browser):
     script = ''
     for link in list_links:
         href = link['href']
-        if href[0:7]== "/writer":
+        if href[0:7] == "/writer":
             writer.append(link.get_text())
-        if href[0:7]== "/genre/":
+        if href[0:7] == "/genre/":
             genre.append(link.get_text())
-        if href[0:9]== "/scripts/":
+        if href[0:9] == "/scripts/":
             script = href
 
     # If the link to the script points to a PDF, skip this movie, but log
@@ -230,18 +234,18 @@ def handle_movie (movie, browser):
     else:
 
         # Parse the webpage which contains the script text
-        full_script_url =  u'http://www.imsdb.com' + script
+        full_script_url = u'http://www.imsdb.com' + script
         browser.get(full_script_url)
         page_text = browser.page_source
         soup = BeautifulSoup(page_text, 'html.parser')
 
         # If the scraping does not go as planned (unexpected structure),
         # log the file name in an error file
-        if len(soup.findAll('td', "scrtext"))!=1:
+        if len(soup.findAll('td', "scrtext")) != 1:
             error_file_name = './data/IMSDB/scraping_error.csv'
             with open(error_file_name, 'a') as error_file:
                 new_row = title + '\n'
-                error_file.write( new_row )
+                error_file.write(new_row)
 
         # Normal scraping:
         else:
@@ -250,23 +254,23 @@ def handle_movie (movie, browser):
             filename = path_to_directory + movie_title + '.txt'
             text = soup.findAll('td', "scrtext")[0].get_text()
             with codecs.open(filename, "w",
-                    encoding='ascii', errors='ignore') as f:
+                             encoding='ascii', errors='ignore') as f:
                 f.write(text)
 
             # Add the meta-information to a CSV file
             path_to_directory = './data/IMSDB/'
             success_filename = path_to_directory + 'successful_files.csv'
             print(title)
-            imdb_id = get_imdb_from_title(title) # get imdb by searching text of title
-            bom_data = get_boxoffice_data(imdb_id).iloc[0] # get box office data from imdb
+            imdb_id = get_imdb_from_title(title)  # get imdb by searching text of title
+            bom_data = get_boxoffice_data(imdb_id).iloc[0]  # get box office data from imdb
             imsdb_out = pd.DataFrame({'Title': title,
                                       'IMSDB-Genres': str(genre),
                                       'Writers': str(writer),
                                       'Movie-Title': movie_title,
                                       'IMDB-ID': imdb_id,
-                                      'Filename': filename}, index = [0])
+                                      'Filename': filename}, index=[0])
 
-            df = pd.concat([imsdb_out, bom_data.to_frame().reindex().T], axis = 1) # concat the two dataframes
+            df = pd.concat([imsdb_out, bom_data.to_frame().reindex().T], axis=1)  # concat the two dataframes
             return df
 
 
@@ -294,9 +298,9 @@ if __name__ == '__main__':
     # in .csv format (in scraping folder)
     browser = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH)
     big_df = pd.DataFrame()
-    for i,movie in enumerate(movies):
+    for i, movie in enumerate(movies):
         big_df = big_df.append(handle_movie(movie, browser), ignore_index=True)
-        big_df.to_csv(path_to_directory + 'movie_info.csv') # update csv iteratively
+        big_df.to_csv(path_to_directory + 'movie_info.csv')  # update csv iteratively
         print("----------------------")
         print(movie)
         print("----------------------")
