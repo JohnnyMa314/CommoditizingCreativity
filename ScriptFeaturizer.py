@@ -37,13 +37,13 @@ def scripts_to_embeddings(scripts):
     """Create WordEmbedding from tokenized scripts."""
 
     docs = [tokenize_script(script, stop_words=True) for script in raw_scripts]
+    
+    model = Word2Vec(docs, 
+                     min_count=1, 
+                     size=300, 
+                     window=5
+                    )
 
-    model = Word2Vec(docs,
-                     min_count=100,
-                     size=100,
-                     window=5,
-                     max_vocab_size=2000
-                     )
     return model
 
 
