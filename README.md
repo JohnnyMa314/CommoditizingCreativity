@@ -20,14 +20,14 @@ If either of these approaches don’t work, we can fallback on the supervised pr
 
 ## Tasks
 
-- [ ] Literature Review
-	- [ ] Script Papers
+- [x] Literature Review
+	- [x] Script Papers
 	- [ ] Genre Classification
 
 - [x] Scrape Scripts
 - [ ] Get IMDB Ratings Data
-- [ ] Get Box Office Revenue Data
-- [ ] Merge Data Source together
+- [x] Get Box Office Revenue Data
+- [x] Merge Data Source together
 
 - [x] Build NLP Feature Pipeline
 	- [x] Bag of Words

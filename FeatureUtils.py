@@ -32,7 +32,7 @@ def tokenize_script(doc, stop_words=False):
     """Use regex to split text into list of words in text."""
     words = re.split("[^A-Za-z0-9\']+", lower(doc))
     if stop_words:
-        words = remove_stop_words(words) 
+        words = remove_stop_words(words)
     return words
 
 
@@ -49,10 +49,11 @@ def make_doc_df(doc):
     words = []
 
     for token in tokens:
-        words.append([token.text, token.lemma_, token.pos_, token.tag_, token.dep_, 
-                     token.shape_, token.is_alpha, token.is_stop, word_to_ner.get(token.text)])
-    
-    return pd.DataFrame(words, columns=['text', 'lemma', 'pos', 'tag', 'dep', 'shape', 'is_alpha', 'is_stop', 'ner_obj'])
+        words.append([token.text, token.lemma_, token.pos_, token.tag_, token.dep_,
+                      token.shape_, token.is_alpha, token.is_stop, word_to_ner.get(token.text)])
+
+    return pd.DataFrame(words,
+                        columns=['text', 'lemma', 'pos', 'tag', 'dep', 'shape', 'is_alpha', 'is_stop', 'ner_obj'])
 
 
 def series_to_doc(ser):
