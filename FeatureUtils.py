@@ -8,7 +8,6 @@ from spacy.lang.en.stop_words import STOP_WORDS
 STOP_WORDS_HASH = set(STOP_WORDS)
 nlp = spacy.load('en_core_web_sm')
 
-
 def load_scripts(my_dir):
     scripts = sorted(os.listdir(my_dir))
     titles = [file.replace('.txt', '') for file in scripts]
@@ -21,7 +20,6 @@ def load_scripts(my_dir):
 
 def lower(doc):
     return doc.lower()
-
 
 def remove_stop_words(words):
     """Remove stop words. Using hashing for better performance."""

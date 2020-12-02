@@ -1,5 +1,5 @@
 import re
-
+import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from spacy.lang.en.stop_words import STOP_WORDS
 
@@ -17,10 +17,12 @@ def scripts_to_tfidf(scripts):
     film_stop_words = ['V.O.', "Scene", "CUT TO", "FADE IN"]
     stop_words = STOP_WORDS.union(film_stop_words)
 
+    docs = [tokenize_script(script, stop_words=True) for script in scripts]
+
     # vectorize scripts into Tfidf matrix
     vectorizer = TfidfVectorizer(input='content', stop_words=stop_words, min_df=0.2,
-                                 ngram_range=(1, 1))  # less than 0.2 frequency. bad.
-    bow = vectorizer.fit_transform(scripts)
+                                 ngram_range=(1, 2))  # less than 20% frequency words are removed.
+    bow = vectorizer.fit_transform(docs)
     vocab = vectorizer.get_feature_names()
 
     return bow, vocab
@@ -35,8 +37,7 @@ def df_to_stats(df, groupby_col, stat='count'):
 
 def scripts_to_embeddings(scripts):
     """Create WordEmbedding from tokenized scripts."""
-
-    docs = [tokenize_script(script, stop_words=True) for script in raw_scripts]
+    docs = [tokenize_script(script, stop_words=True) for script in scripts]
     
     model = Word2Vec(docs, 
                      min_count=1, 
